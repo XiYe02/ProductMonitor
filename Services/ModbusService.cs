@@ -179,7 +179,7 @@ namespace ProductMonitor.Services
                 catch (Exception ex)
                 {
                     Console.WriteLine($"读取寄存器失败: {ex.Message}");
-                    return new ushort[numberOfPoints]; // 返回全零数组
+                    return null; // 返回null表示读取失败
                 }
             });
         }

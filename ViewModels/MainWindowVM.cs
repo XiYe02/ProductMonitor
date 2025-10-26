@@ -11,7 +11,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
-using System.Windows;
 using System.Windows.Controls;
 using LiveCharts;
 
@@ -51,10 +50,11 @@ namespace ProductMonitor.ViewModels
             _radarDataTimer.AutoReset = true;
 
             // 初始化图表数据定时器
-            _chartDataTimer = new Timer(1000); // 每5秒更新一次
+            _chartDataTimer = new Timer(1000); // 每4秒更新一次
             _chartDataTimer.Elapsed += OnChartDataTimerElapsed;
             _chartDataTimer.AutoReset = true;
             _chartDataTimer.Start();
+
             #region 初始化环境监控数据
             EnviromentList = new List<EnviromentModel>();
 
@@ -285,7 +285,7 @@ namespace ProductMonitor.ViewModels
         /// <summary>
         /// 生产计数柱状图数据
         /// </summary>
-        private ChartValues<double> _ProductionChartData = new ChartValues<double>();
+        private ChartValues<double> _ProductionChartData = new ChartValues<double> { };
 
         /// <summary>
         /// 生产计数柱状图数据
@@ -306,7 +306,7 @@ namespace ProductMonitor.ViewModels
         /// <summary>
         /// 不良计数柱状图数据
         /// </summary>
-        private ChartValues<double> _DefectChartData = new ChartValues<double>();
+        private ChartValues<double> _DefectChartData = new ChartValues<double> { };
 
         /// <summary>
         /// 不良计数柱状图数据
@@ -577,34 +577,46 @@ namespace ProductMonitor.ViewModels
             _chartDataTimer?.Dispose();
         }
 
+        #endregion
+
+        #region 图表数据定时器
+        /// <summary>
+        /// 图表数据定时器事件处理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private async void OnChartDataTimerElapsed(object sender, ElapsedEventArgs e)
         {
             try
             {
-                // 从PLC读取18个保持寄存器的数据
-                ushort[] data = await _modbusService.ReadHoldingRegistersAsync(20, 18);
-
-                if (data != null && data.Length == 18)
+                // 从Modbus读取生产计数数据
+                var productionData = await _modbusService.ReadHoldingRegistersAsync(20, 9);
+                if (productionData != null)
                 {
-                    // 更新生产数据（前9个寄存器）
-                    var productionData = new ChartValues<double>(data.Take(9).Select(v => (double)v));
+                    var newProductionData = productionData.Select(v => (double)v);
+                    if (!ProductionChartData.SequenceEqual(newProductionData))
+                    {
+                        ProductionChartData = new ChartValues<double>(newProductionData);
+                    }
+                }
 
-                    // 更新不良品数据（后9个寄存器）
-                    var defectData = new ChartValues<double>(data.Skip(9).Take(9).Select(v => (double)v));
-
-                  
-                        ProductionChartData = productionData;
-                        DefectChartData = defectData;
-                   
+                // 从Modbus读取不良计数数据
+                var defectData = await _modbusService.ReadHoldingRegistersAsync(30, 9);
+                if (defectData != null)
+                {
+                    var newDefectData = defectData.Select(v => (double)v);
+                    if (!DefectChartData.SequenceEqual(newDefectData))
+                    {
+                        DefectChartData = new ChartValues<double>(newDefectData);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                // 异常处理
-                Console.WriteLine($"更新图表数据失败: {ex.Message}");
+                // 记录错误
+                Console.WriteLine($"读取图表数据时发生错误: {ex.Message}");
             }
         }
-
         #endregion
 
     }
