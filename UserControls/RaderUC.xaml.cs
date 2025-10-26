@@ -1,4 +1,4 @@
-﻿using ProductMonitor.Models;
+using ProductMonitor.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,6 +29,16 @@ namespace ProductMonitor.UserControls
         }
 
         /// <summary>
+        /// 控件加载完成事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            Drag(); // 控件加载完成后绘制雷达图
+        }
+
+        /// <summary>
         /// 窗体大小发生变化 重新画图
         /// </summary>
         /// <param name="sender"></param>
@@ -49,7 +59,25 @@ namespace ProductMonitor.UserControls
 
         // Using a DependencyProperty as the backing store for MyProperty.  This enables animation, styling, binding, etc...
         public static readonly DependencyProperty ItemSourceProperty =
-            DependencyProperty.Register("ItemSource", typeof(List<RaderModel>), typeof(RaderUC));
+            DependencyProperty.Register("ItemSource", typeof(List<RaderModel>), typeof(RaderUC), 
+                new PropertyMetadata(null, OnItemSourceChanged));
+
+        /// <summary>
+        /// 当ItemSource属性变更时的回调方法
+        /// </summary>
+        /// <param name="d"></param>
+        /// <param name="e"></param>
+        private static void OnItemSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is RaderUC raderUC && raderUC.IsLoaded)
+            {
+                // 使用Dispatcher确保在UI线程上执行
+                raderUC.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    raderUC.Drag(); // 重新绘制雷达图
+                }));
+            }
+        }
 
         /// <summary>
         /// 画图方法
@@ -58,6 +86,12 @@ namespace ProductMonitor.UserControls
         {
             //判断是否有数据
             if (ItemSource == null || ItemSource.Count == 0)
+            {
+                return;
+            }
+
+            // 确保控件已经完全加载并且有有效的尺寸
+            if (RenderSize.Width <= 0 || RenderSize.Height <= 0)
             {
                 return;
             }
@@ -72,6 +106,8 @@ namespace ProductMonitor.UserControls
 
             //调整大小(正方形)
             double size = Math.Min(RenderSize.Width, RenderSize.Height);
+            if (size <= 0) size = 200; // 设置最小尺寸
+            
             LayGrid.Height = size;
             LayGrid.Width = size;
             //半径

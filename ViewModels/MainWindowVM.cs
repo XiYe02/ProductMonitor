@@ -1,4 +1,5 @@
-﻿using ProductMonitor.Models;
+using ProductMonitor.Models;
+using ProductMonitor.Services;
 using ProductMonitor.UserControls;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Windows.Controls;
 
 namespace ProductMonitor.ViewModels
@@ -17,14 +19,37 @@ namespace ProductMonitor.ViewModels
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 
+        private readonly ModbusService _modbusService;
+        private Timer _deviceDataTimer;
+        private Timer _environmentDataTimer;
+        private Timer _radarDataTimer;
+
         /// <summary>
         /// 视图模型构造函数
         /// </summary>
         public MainWindowVM()
         {
+            // 初始化Modbus服务
+            _modbusService = new ModbusService();
+            
+            // 初始化设备数据定时器
+            _deviceDataTimer = new Timer(2000); // 每2秒更新一次
+            _deviceDataTimer.Elapsed += OnDeviceDataTimerElapsed;
+            _deviceDataTimer.AutoReset = true;
+
+            // 初始化环境数据定时器
+            _environmentDataTimer = new Timer(3000); // 每3秒更新一次
+            _environmentDataTimer.Elapsed += OnEnvironmentDataTimerElapsed;
+            _environmentDataTimer.AutoReset = true;
+
+            // 初始化雷达数据定时器
+            _radarDataTimer = new Timer(1000); // 每4秒更新一次
+            _radarDataTimer.Elapsed += OnRadarDataTimerElapsed;
+            _radarDataTimer.AutoReset = true;
             #region 初始化环境监控数据
             EnviromentList = new List<EnviromentModel>();
 
+            // 初始化默认环境数据
             EnviromentList.Add(new EnviromentModel { EnItemName = "光照(Lux)", EnItemValue = 123 });
             EnviromentList.Add(new EnviromentModel { EnItemName = "噪音(db)", EnItemValue = 55 });
             EnviromentList.Add(new EnviromentModel { EnItemName = "温度(℃)", EnItemValue = 80 });
@@ -33,29 +58,8 @@ namespace ProductMonitor.ViewModels
             EnviromentList.Add(new EnviromentModel { EnItemName = "硫化氢(PPM)", EnItemValue = 15 });
             EnviromentList.Add(new EnviromentModel { EnItemName = "氮气(PPM)", EnItemValue = 18 });
 
-            //从设备读取数据(异步) 如果您没有学习到上位机，该区域代码报错，直接注释该区域代码
-            #region 从设备读取环境数据
-            //Task.Run(() =>
-            //          {
-            //              while (true)
-            //              {
-            //                  using (SerialPort serialPort = new SerialPort("COM1", 9600, Parity.None, 8, StopBits.One))
-            //                  {
-            //                      serialPort.Open();
-            //                      Modbus.Device.IModbusSerialMaster master = Modbus.Device.ModbusSerialMaster.CreateRtu(serialPort);
-
-            //                      //功能码03
-            //                      ushort[] value = master.ReadHoldingRegisters(1, 0, 7);//从设备地址，寄存器起始地址，寄存器个数
-
-            //                      for (int i = 0; i < 7; i++)
-            //                      {
-            //                          EnviromentList[i].EnItemValue = value[i];
-            //                      }
-            //                  }
-            //              }
-            //          });
-            #endregion
-
+            // 启动环境数据读取定时器
+            _environmentDataTimer.Start();
             #endregion
 
             #region 初始化报警列表
@@ -69,6 +73,8 @@ namespace ProductMonitor.ViewModels
 
             #region 初始化设备监控
             DeviceList = new List<DeviceModel>();
+            
+            // 初始化默认数据
             DeviceList.Add(new DeviceModel { DeviceItem = "电能(Kw.h)", Value = 60.8 });
             DeviceList.Add(new DeviceModel { DeviceItem = "电压(V)", Value = 390 });
             DeviceList.Add(new DeviceModel { DeviceItem = "电流(A)", Value = 5 });
@@ -77,16 +83,23 @@ namespace ProductMonitor.ViewModels
             DeviceList.Add(new DeviceModel { DeviceItem = "振动(mm/s)", Value = 4.1 });
             DeviceList.Add(new DeviceModel { DeviceItem = "转速(r/min)", Value = 2600 });
             DeviceList.Add(new DeviceModel { DeviceItem = "气压(kpa)", Value = 0.5 });
+
+            // 启动设备数据读取定时器
+            _deviceDataTimer.Start();
             #endregion
 
             #region 初始化雷达数据 
             RaderList = new List<RaderModel>();
+
+            // 初始化默认雷达数据
             RaderList.Add(new RaderModel { ItemName = "排烟风机", Value = 90 });
             RaderList.Add(new RaderModel { ItemName = "客梯", Value = 30.00 });
             RaderList.Add(new RaderModel { ItemName = "供水机", Value = 34.89 });
             RaderList.Add(new RaderModel { ItemName = "喷淋水泵", Value = 69.59 });
             RaderList.Add(new RaderModel { ItemName = "稳压设备", Value = 20 });
 
+            // 启动雷达数据读取定时器
+            _radarDataTimer.Start();
             #endregion
 
             #region 初始化人员缺岗信息
@@ -420,7 +433,96 @@ namespace ProductMonitor.ViewModels
         }
         #endregion
 
+        #region 私有方法
 
+        /// <summary>
+        /// 设备数据定时器事件处理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OnDeviceDataTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                // 从Modbus读取设备数据
+                var newDeviceData = await _modbusService.ReadDeviceDataAsync();
+                
+                // 更新设备列表数据
+                for (int i = 0; i < DeviceList.Count && i < newDeviceData.Count; i++)
+                {
+                    DeviceList[i].Value = newDeviceData[i].Value;
+                }
+
+               
+            }
+            catch (Exception ex)
+            {
+                // 记录错误（在实际应用中可以使用日志框架）
+                Console.WriteLine($"读取设备数据时发生错误: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 环境数据定时器事件处理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OnEnvironmentDataTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                // 从Modbus读取环境数据
+                var newEnvironmentData = await _modbusService.ReadEnvironmentDataAsync();
+                
+                // 更新环境列表数据
+                for (int i = 0; i < EnviromentList.Count && i < newEnvironmentData.Count; i++)
+                {
+                    EnviromentList[i].EnItemValue = newEnvironmentData[i].EnItemValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                // 记录错误（在实际应用中可以使用日志框架）
+                Console.WriteLine($"读取环境数据时发生错误: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 雷达数据定时器事件处理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OnRadarDataTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                // 从Modbus读取雷达数据
+                var newRadarData = await _modbusService.ReadRadarDataAsync();
+                
+                // 重新设置整个雷达列表以触发UI更新
+                RaderList = newRadarData;
+            }
+            catch (Exception ex)
+            {
+                // 记录错误（在实际应用中可以使用日志框架）
+                Console.WriteLine($"读取雷达数据时发生错误: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 停止定时器（在窗口关闭时调用）
+        /// </summary>
+        public void StopTimer()
+        {
+            _deviceDataTimer?.Stop();
+            _deviceDataTimer?.Dispose();
+            _environmentDataTimer?.Stop();
+            _environmentDataTimer?.Dispose();
+            _radarDataTimer?.Stop();
+            _radarDataTimer?.Dispose();
+        }
+
+        #endregion
 
     }
 }

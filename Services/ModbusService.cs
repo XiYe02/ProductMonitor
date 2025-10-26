@@ -1,0 +1,214 @@
+using Modbus.Device;
+using ProductMonitor.Models;
+using System;
+using System.Collections.Generic;
+using System.IO.Ports;
+using System.Threading.Tasks;
+
+namespace ProductMonitor.Services
+{
+    /// <summary>
+    /// Modbus通信服务类
+    /// </summary>
+    public class ModbusService
+    {
+        private readonly string _portName;
+        private readonly int _baudRate;
+        private readonly byte _slaveId;
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="portName">串口名称，默认COM3</param>
+        /// <param name="baudRate">波特率，默认9600</param>
+        /// <param name="slaveId">从设备地址，默认1</param>
+        public ModbusService(string portName = "COM3", int baudRate = 9600, byte slaveId = 1)
+        {
+            _portName = portName;
+            _baudRate = baudRate;
+            _slaveId = slaveId;
+        }
+
+        /// <summary>
+        /// 读取设备监控数据
+        /// </summary>
+        /// <returns>设备数据列表</returns>
+        public async Task<List<DeviceModel>> ReadDeviceDataAsync()
+        {
+            return await Task.Run(() =>
+            {
+                var deviceList = new List<DeviceModel>();
+                
+                try
+                {
+                    using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
+                    {
+                        serialPort.Open();
+                        IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+
+                        // 读取8个寄存器的数据（对应8个设备监控项）
+                        // 假设设备数据存储在寄存器地址0-7
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 7, 8);
+
+                        // 根据实际设备配置映射数据
+                        deviceList.Add(new DeviceModel { DeviceItem = "电能(Kw.h)", Value = values[0]  }); // 假设需要缩放
+                        deviceList.Add(new DeviceModel { DeviceItem = "电压(V)", Value = values[1] });
+                        deviceList.Add(new DeviceModel { DeviceItem = "电流(A)", Value = values[2]  });
+                        deviceList.Add(new DeviceModel { DeviceItem = "压差(kpa)", Value = values[3] });
+                        deviceList.Add(new DeviceModel { DeviceItem = "温度(℃)", Value = values[4] });
+                        deviceList.Add(new DeviceModel { DeviceItem = "振动(mm/s)", Value = values[5] });
+                        deviceList.Add(new DeviceModel { DeviceItem = "转速(r/min)", Value = values[6] });
+                        deviceList.Add(new DeviceModel { DeviceItem = "气压(kpa)", Value = values[7]  });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 如果读取失败，返回默认值（可以记录日志）
+                    Console.WriteLine($"Modbus读取失败: {ex.Message}");
+                    
+                   
+                }
+
+                return deviceList;
+            });
+        }
+
+        /// <summary>
+        /// 读取环境监控数据
+        /// </summary>
+        /// <returns>环境数据列表</returns>
+        public async Task<List<EnviromentModel>> ReadEnvironmentDataAsync()
+        {
+            return await Task.Run(() =>
+            {
+                var environmentList = new List<EnviromentModel>();
+                
+                try
+                {
+                    using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
+                    {
+                        serialPort.Open();
+                        IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+
+                        // 读取7个寄存器的数据（对应7个环境监控项）
+                        // 假设环境数据存储在寄存器地址8-14（与设备数据分开）
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 0, 7);
+
+                        // 根据实际设备配置映射环境数据
+                        environmentList.Add(new EnviromentModel { EnItemName = "光照(Lux)", EnItemValue = values[0] });
+                        environmentList.Add(new EnviromentModel { EnItemName = "噪音(db)", EnItemValue = values[1] });
+                        environmentList.Add(new EnviromentModel { EnItemName = "温度(℃)", EnItemValue = values[2] });
+                        environmentList.Add(new EnviromentModel { EnItemName = "湿度(%)", EnItemValue = values[3] });
+                        environmentList.Add(new EnviromentModel { EnItemName = "PM2.5(m³)", EnItemValue = values[4] });
+                        environmentList.Add(new EnviromentModel { EnItemName = "硫化氢(PPM)", EnItemValue = values[5] });
+                        environmentList.Add(new EnviromentModel { EnItemName = "氮气(PPM)", EnItemValue = values[6] });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 如果读取失败，返回默认值（可以记录日志）
+                    Console.WriteLine($"Modbus环境数据读取失败: {ex.Message}");
+                    
+                  
+                }
+
+                return environmentList;
+            });
+        }
+
+        /// <summary>
+        /// 读取雷达数据
+        /// </summary>
+        /// <returns>雷达数据列表</returns>
+        public async Task<List<RaderModel>> ReadRadarDataAsync()
+        {
+            return await Task.Run(() =>
+            {
+                var radarList = new List<RaderModel>();
+                
+                try
+                {
+                    using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
+                    {
+                        serialPort.Open();
+                        IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+
+                        // 读取5个寄存器的数据（对应5个雷达监控项）
+                        // 假设雷达数据存储在寄存器地址15-19（与设备和环境数据分开）
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 15, 5);
+
+                        // 根据实际设备配置映射雷达数据
+                        radarList.Add(new RaderModel { ItemName = "排烟风机", Value = values[0] });
+                        radarList.Add(new RaderModel { ItemName = "客梯", Value = values[1]  }); // 假设需要缩放
+                        radarList.Add(new RaderModel { ItemName = "供水机", Value = values[2]  }); // 假设需要缩放
+                        radarList.Add(new RaderModel { ItemName = "喷淋水泵", Value = values[3]  }); // 假设需要缩放
+                        radarList.Add(new RaderModel { ItemName = "稳压设备", Value = values[4] });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 如果读取失败，返回默认值（可以记录日志）
+                    Console.WriteLine($"Modbus雷达数据读取失败: {ex.Message}");
+                    
+                  
+                }
+
+                return radarList;
+            });
+        }
+
+        /// <summary>
+        /// 读取单个寄存器数据
+        /// </summary>
+        /// <param name="startAddress">起始地址</param>
+        /// <param name="numberOfPoints">寄存器数量</param>
+        /// <returns>寄存器值数组</returns>
+        public async Task<ushort[]> ReadHoldingRegistersAsync(ushort startAddress, ushort numberOfPoints)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
+                    {
+                        serialPort.Open();
+                        IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+                        return master.ReadHoldingRegisters(_slaveId, startAddress, numberOfPoints);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"读取寄存器失败: {ex.Message}");
+                    return new ushort[numberOfPoints]; // 返回全零数组
+                }
+            });
+        }
+
+        /// <summary>
+        /// 测试连接
+        /// </summary>
+        /// <returns>连接是否成功</returns>
+        public async Task<bool> TestConnectionAsync()
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
+                    {
+                        serialPort.Open();
+                        IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+                        
+                        // 尝试读取一个寄存器来测试连接
+                        master.ReadHoldingRegisters(_slaveId, 0, 1);
+                        return true;
+                    }
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+    }
+}

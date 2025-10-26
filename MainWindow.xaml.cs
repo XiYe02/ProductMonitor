@@ -1,4 +1,4 @@
-﻿using ProductMonitor.OpCommand;
+using ProductMonitor.OpCommand;
 using ProductMonitor.UserControls;
 using ProductMonitor.ViewModels;
 using ProductMonitor.Views;
@@ -34,6 +34,20 @@ namespace ProductMonitor
         {
             InitializeComponent();
             this.DataContext = mainWindowVM;
+            
+            // 添加窗口关闭事件处理
+            this.Closing += MainWindow_Closing;
+        }
+
+        /// <summary>
+        /// 窗口关闭事件处理
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // 停止定时器
+            mainWindowVM.StopTimer();
         }
 
         /// <summary>
