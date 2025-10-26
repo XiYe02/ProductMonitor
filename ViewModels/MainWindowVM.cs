@@ -11,7 +11,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
+using System.Windows;
 using System.Windows.Controls;
+using LiveCharts;
 
 namespace ProductMonitor.ViewModels
 {
@@ -23,6 +25,7 @@ namespace ProductMonitor.ViewModels
         private Timer _deviceDataTimer;
         private Timer _environmentDataTimer;
         private Timer _radarDataTimer;
+        private Timer _chartDataTimer;
 
         /// <summary>
         /// 视图模型构造函数
@@ -46,6 +49,12 @@ namespace ProductMonitor.ViewModels
             _radarDataTimer = new Timer(1000); // 每4秒更新一次
             _radarDataTimer.Elapsed += OnRadarDataTimerElapsed;
             _radarDataTimer.AutoReset = true;
+
+            // 初始化图表数据定时器
+            _chartDataTimer = new Timer(1000); // 每5秒更新一次
+            _chartDataTimer.Elapsed += OnChartDataTimerElapsed;
+            _chartDataTimer.AutoReset = true;
+            _chartDataTimer.Start();
             #region 初始化环境监控数据
             EnviromentList = new List<EnviromentModel>();
 
@@ -267,6 +276,50 @@ namespace ProductMonitor.ViewModels
                 if (PropertyChanged != null)
                 {
                     PropertyChanged(this, new PropertyChangedEventArgs("BadCount"));
+                }
+            }
+        }
+        #endregion
+
+        #region 柱状图数据属性
+        /// <summary>
+        /// 生产计数柱状图数据
+        /// </summary>
+        private ChartValues<double> _ProductionChartData = new ChartValues<double>();
+
+        /// <summary>
+        /// 生产计数柱状图数据
+        /// </summary>
+        public ChartValues<double> ProductionChartData
+        {
+            get { return _ProductionChartData; }
+            set
+            {
+                _ProductionChartData = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("ProductionChartData"));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 不良计数柱状图数据
+        /// </summary>
+        private ChartValues<double> _DefectChartData = new ChartValues<double>();
+
+        /// <summary>
+        /// 不良计数柱状图数据
+        /// </summary>
+        public ChartValues<double> DefectChartData
+        {
+            get { return _DefectChartData; }
+            set
+            {
+                _DefectChartData = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("DefectChartData"));
                 }
             }
         }
@@ -520,6 +573,36 @@ namespace ProductMonitor.ViewModels
             _environmentDataTimer?.Dispose();
             _radarDataTimer?.Stop();
             _radarDataTimer?.Dispose();
+            _chartDataTimer?.Stop();
+            _chartDataTimer?.Dispose();
+        }
+
+        private async void OnChartDataTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                // 从PLC读取18个保持寄存器的数据
+                ushort[] data = await _modbusService.ReadHoldingRegistersAsync(20, 18);
+
+                if (data != null && data.Length == 18)
+                {
+                    // 更新生产数据（前9个寄存器）
+                    var productionData = new ChartValues<double>(data.Take(9).Select(v => (double)v));
+
+                    // 更新不良品数据（后9个寄存器）
+                    var defectData = new ChartValues<double>(data.Skip(9).Take(9).Select(v => (double)v));
+
+                  
+                        ProductionChartData = productionData;
+                        DefectChartData = defectData;
+                   
+                }
+            }
+            catch (Exception ex)
+            {
+                // 异常处理
+                Console.WriteLine($"更新图表数据失败: {ex.Message}");
+            }
         }
 
         #endregion

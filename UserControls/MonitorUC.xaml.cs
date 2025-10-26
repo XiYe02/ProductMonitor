@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,6 +23,19 @@ namespace ProductMonitor.UserControls
         public MonitorUC()
         {
             InitializeComponent();
+            
+            // 设置DataContext为父窗口的DataContext
+            this.Loaded += MonitorUC_Loaded;
+        }
+
+        private void MonitorUC_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 获取父窗口的DataContext
+            var parentWindow = Window.GetWindow(this);
+            if (parentWindow != null)
+            {
+                this.DataContext = parentWindow.DataContext;
+            }
         }
     }
 }
