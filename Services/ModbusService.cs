@@ -49,7 +49,7 @@ namespace ProductMonitor.Services
 
                         // 读取8个寄存器的数据（对应8个设备监控项）
                         // 假设设备数据存储在寄存器地址0-7
-                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 7, 8);
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 0, 8);
 
                         // 根据实际设备配置映射数据
                         deviceList.Add(new DeviceModel { DeviceItem = "电能(Kw.h)", Value = values[0]  }); // 假设需要缩放
@@ -131,12 +131,13 @@ namespace ProductMonitor.Services
                 {
                     using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
                     {
+                       
                         serialPort.Open();
                         IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
-
+                  
                         // 读取5个寄存器的数据（对应5个雷达监控项）
                         // 假设雷达数据存储在寄存器地址15-19（与设备和环境数据分开）
-                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 15, 5);
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 0, 5);
 
                         // 根据实际设备配置映射雷达数据
                         radarList.Add(new RaderModel { ItemName = "排烟风机", Value = values[0] });
@@ -149,7 +150,7 @@ namespace ProductMonitor.Services
                 catch (Exception ex)
                 {
                     // 如果读取失败，返回默认值（可以记录日志）
-                    Console.WriteLine($"Modbus雷达数据读取失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Modbus雷达数据读取失败: {ex.Message}");
                     
                   
                 }
@@ -220,35 +221,40 @@ namespace ProductMonitor.Services
         {
             return await Task.Run(() =>
             {
-                var pieChartData = new ObservableCollection<PieChartModel>
-                {
-                    new PieChartModel { Title = "压差", Value = 0 },
-                    new PieChartModel { Title = "振动", Value = 0 },
-                    new PieChartModel { Title = "设备温度", Value = 0 },
-                    new PieChartModel { Title = "光照", Value = 0 }
-                };
+                var pieChartData = new ObservableCollection<PieChartModel>();
                 
                 try
                 {
                     using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
                     {
+                    
                         serialPort.Open();
                         IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+                       
 
-                        // 假设饼图数据存储在寄存器地址20-23
-                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 40, 4);
+                        // 假设饼图数据存储在寄存器地址40-43（4个寄存器）
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId,0, 4);
+            
+                        System.Diagnostics.Debug.WriteLine($"Modbus读取成功: [{string.Join(", ", values)}]");
 
-                        // 更新饼图数据
-                        pieChartData[0].Value = values[0]; // 压差
-                        pieChartData[1].Value = values[1]; // 振动
-                        pieChartData[2].Value = values[2]; // 设备温度
-                        pieChartData[3].Value = values[3]; // 光照
+                        // 创建饼图数据对象并添加到集合
+                        pieChartData.Add(new PieChartModel { Title = "压差", Value = values[0] });
+                        pieChartData.Add(new PieChartModel { Title = "振动", Value = values[1] });
+                        pieChartData.Add(new PieChartModel { Title = "设备温度", Value = values[2] });
+                        pieChartData.Add(new PieChartModel { Title = "光照", Value = values[3] });
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Modbus饼图数据读取失败: {ex.Message}");
-                     
+                    System.Diagnostics.Debug.WriteLine($"Modbus饼图数据读取失败: {ex.Message}");
+                    
+                
+                    pieChartData.Add(new PieChartModel { Title = "压差", Value=25 });
+                    pieChartData.Add(new PieChartModel { Title = "振动", Value = 25 });
+                    pieChartData.Add(new PieChartModel { Title = "设备温度", Value = 25 });
+                    pieChartData.Add(new PieChartModel { Title = "光照", Value = 25 } );
+                    
+                    System.Diagnostics.Debug.WriteLine($"使用模拟数据: [压差={pieChartData[0].Value}, 振动={pieChartData[1].Value}, 设备温度={pieChartData[2].Value}, 光照={pieChartData[3].Value}]");
                 }
 
                 return pieChartData;

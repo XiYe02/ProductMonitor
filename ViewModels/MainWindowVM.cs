@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Controls;
 using LiveCharts;
+using LiveCharts.Wpf;
 
 namespace ProductMonitor.ViewModels
 {
@@ -25,6 +26,7 @@ namespace ProductMonitor.ViewModels
         private Timer _environmentDataTimer;
         private Timer _radarDataTimer;
         private Timer _chartDataTimer;
+        private Timer _pieChartDataTimer;
 
         /// <summary>
         /// 视图模型构造函数
@@ -54,6 +56,25 @@ namespace ProductMonitor.ViewModels
             _chartDataTimer.Elapsed += OnChartDataTimerElapsed;
             _chartDataTimer.AutoReset = true;
             _chartDataTimer.Start();
+
+            // 初始化饼图数据定时器
+            _pieChartDataTimer = new Timer(1000); // 每5秒更新一次
+            _pieChartDataTimer.Elapsed += OnPieChartDataTimerElapsed;
+            _pieChartDataTimer.AutoReset = true;
+           
+
+            // 初始化饼图数据模型
+            PieChartData = new ObservableCollection<PieChartModel>()
+            {
+                 new PieChartModel { Title = "压差", Value = 25 },
+                 new PieChartModel { Title = "振动", Value = 25 },
+                 new PieChartModel { Title = "设备温度", Value = 25 },
+                 new PieChartModel { Title = "光照", Value = 25 }
+            };
+
+            // 初始化饼图Series集合 - 先创建SeriesCollection再填充数据
+            InitializePieChartData();
+            _pieChartDataTimer.Start();
 
             #region 初始化环境监控数据
             EnviromentList = new List<EnviromentModel>();
@@ -147,6 +168,7 @@ namespace ProductMonitor.ViewModels
                 });
             }
             #endregion
+
         }
 
         /// <summary>
@@ -486,7 +508,83 @@ namespace ProductMonitor.ViewModels
         }
         #endregion
 
+        #region 饼图数据属性
+        /// <summary>
+        /// 饼图数据集合（可选）
+        /// </summary>
+        private ObservableCollection<PieChartModel> _PieChartData;
+
+        /// <summary>
+        /// 饼图数据集合
+        /// </summary>
+        public ObservableCollection<PieChartModel> PieChartData
+        {
+            get { return _PieChartData; }
+            set
+            {
+                _PieChartData = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("PieChartData"));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 绑定到PieChart的Series集合
+        /// </summary>
+        private SeriesCollection _PieSeriesCollection;
+
+        /// <summary>
+        /// 绑定到PieChart的Series集合
+        /// </summary>
+        public SeriesCollection PieSeriesCollection
+        {
+            get { return _PieSeriesCollection; }
+            set
+            {
+                _PieSeriesCollection = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("PieSeriesCollection"));
+                }
+            }
+        }
+
+        // 缓存上次数据，用于比较是否变化
+        private double[] _lastPieValues;
+        private string[] _lastPieTitles;
+        #endregion
+
         #region 私有方法
+
+        /// <summary>
+        /// 初始化饼图数据
+        /// </summary>
+        private void InitializePieChartData()
+        {
+            // 创建新的SeriesCollection
+            var newSeries = new SeriesCollection();
+            
+            // 从 PieChartData 创建 Series
+            if (PieChartData != null && PieChartData.Count > 0)
+            {
+                foreach (var data in PieChartData)
+                {
+                    newSeries.Add(new PieSeries
+                    {
+                        Title = data.Title,
+                        Values = new ChartValues<double> { data.Value },
+                        StrokeThickness = 0,
+                        DataLabels = true,
+                        LabelPosition = PieLabelPosition.OutsideSlice
+                    });
+                }
+            }
+            
+            // 更新PieSeriesCollection，确保触发属性变更通知
+            PieSeriesCollection = newSeries;
+        }
 
         /// <summary>
         /// 设备数据定时器事件处理
@@ -497,8 +595,9 @@ namespace ProductMonitor.ViewModels
         {
             try
             {
+                ModbusService DeviceDataModbus = new ModbusService("COM3", 9600, 1);
                 // 从Modbus读取设备数据
-                var newDeviceData = await _modbusService.ReadDeviceDataAsync();
+                var newDeviceData = await DeviceDataModbus.ReadDeviceDataAsync();
                 
                 // 更新设备列表数据
                 for (int i = 0; i < DeviceList.Count && i < newDeviceData.Count; i++)
@@ -524,8 +623,10 @@ namespace ProductMonitor.ViewModels
         {
             try
             {
+                ModbusService EnviromentDataModbus = new ModbusService("COM3", 9600, 2);
+
                 // 从Modbus读取环境数据
-                var newEnvironmentData = await _modbusService.ReadEnvironmentDataAsync();
+                var newEnvironmentData = await EnviromentDataModbus.ReadEnvironmentDataAsync();
                 
                 // 更新环境列表数据
                 for (int i = 0; i < EnviromentList.Count && i < newEnvironmentData.Count; i++)
@@ -549,8 +650,9 @@ namespace ProductMonitor.ViewModels
         {
             try
             {
+                ModbusService RadarDataModbus = new ModbusService("COM3", 9600, 3);
                 // 从Modbus读取雷达数据
-                var newRadarData = await _modbusService.ReadRadarDataAsync();
+                var newRadarData = await RadarDataModbus.ReadRadarDataAsync();
                 
                 // 重新设置整个雷达列表以触发UI更新
                 RaderList = newRadarData;
@@ -562,19 +664,97 @@ namespace ProductMonitor.ViewModels
             }
         }
 
+       
+
         /// <summary>
-        /// 停止定时器（在窗口关闭时调用）
+        /// 饼图数据定时器事件处理
         /// </summary>
-        public void StopTimer()
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OnPieChartDataTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            _deviceDataTimer?.Stop();
-            _deviceDataTimer?.Dispose();
-            _environmentDataTimer?.Stop();
-            _environmentDataTimer?.Dispose();
-            _radarDataTimer?.Stop();
-            _radarDataTimer?.Dispose();
-            _chartDataTimer?.Stop();
-            _chartDataTimer?.Dispose();
+            try
+            {
+               ModbusService  PieChartDataModbus=new ModbusService("COM3", 9600,4);
+                // 从PLC读取饼图数据
+                var newPieChartData = await PieChartDataModbus.ReadPieChartDataAsync();
+                
+                // 检查是否成功读取到数据
+                if (newPieChartData == null || newPieChartData.Count == 0)
+                {
+                   
+                    return;
+                }
+
+                // 生成当前数据的快照
+                var newValues = newPieChartData.Select(d => d.Value).ToArray();
+                var newTitles = newPieChartData.Select(d => d.Title).ToArray();
+                
+                // 比较数据是否变化
+                bool dataChanged = false;
+                if (_lastPieValues == null || _lastPieTitles == null || 
+                    _lastPieValues.Length != newValues.Length || 
+                    _lastPieTitles.Length != newTitles.Length)
+                {
+                    dataChanged = true;
+                }
+                else
+                {
+                    // 检查数值是否变化
+                    for (int i = 0; i < newValues.Length; i++)
+                    {
+                        if (Math.Abs(_lastPieValues[i] - newValues[i]) > 0.001 || _lastPieTitles[i] != newTitles[i])
+                        {
+                            dataChanged = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // 如果数据没有变化，跳过更新
+                if (!dataChanged)
+                {
+                   
+                    return;
+                }
+                
+               
+
+                // 使用UI线程更新数据
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // 更新PieChartData
+                    PieChartData = newPieChartData;
+                    
+                    // 重建饼图的Series集合
+                    var newSeries = new SeriesCollection();
+                    for (int i = 0; i < newPieChartData.Count; i++)
+                    {
+                        newSeries.Add(new PieSeries
+                        {
+                            Title = newTitles[i],
+                            Values = new ChartValues<double> { newValues[i] },
+                            StrokeThickness = 0,
+                            DataLabels = true,
+                            LabelPosition = PieLabelPosition.OutsideSlice
+                        });
+                    }
+                    
+                    // 更新SeriesCollection
+                    PieSeriesCollection = newSeries;
+                    
+                   
+                });
+                
+                // 缓存本次数据，用于下次比较
+                _lastPieValues = newValues;
+                _lastPieTitles = newTitles;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"更新饼图数据失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+            }
         }
 
         #endregion
@@ -589,8 +769,10 @@ namespace ProductMonitor.ViewModels
         {
             try
             {
+                ModbusService ChartDataModbus = new ModbusService("COM3", 9600, 5);
+
                 // 从Modbus读取生产计数数据
-                var productionData = await _modbusService.ReadHoldingRegistersAsync(20, 9);
+                var productionData = await ChartDataModbus.ReadHoldingRegistersAsync(0, 9);
                 if (productionData != null)
                 {
                     var newProductionData = productionData.Select(v => (double)v);
@@ -601,7 +783,7 @@ namespace ProductMonitor.ViewModels
                 }
 
                 // 从Modbus读取不良计数数据
-                var defectData = await _modbusService.ReadHoldingRegistersAsync(30, 9);
+                var defectData = await ChartDataModbus.ReadHoldingRegistersAsync(10, 9);
                 if (defectData != null)
                 {
                     var newDefectData = defectData.Select(v => (double)v);
@@ -619,5 +801,22 @@ namespace ProductMonitor.ViewModels
         }
         #endregion
 
+
+        /// <summary>
+        /// 停止定时器（在窗口关闭时调用）
+        /// </summary>
+        public void StopTimer()
+        {
+            _deviceDataTimer?.Stop();
+            _deviceDataTimer?.Dispose();
+            _environmentDataTimer?.Stop();
+            _environmentDataTimer?.Dispose();
+            _radarDataTimer?.Stop();
+            _radarDataTimer?.Dispose();
+            _chartDataTimer?.Stop();
+            _chartDataTimer?.Dispose();
+            _pieChartDataTimer?.Stop();
+            _pieChartDataTimer?.Dispose();
+        }
     }
 }

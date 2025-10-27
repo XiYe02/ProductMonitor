@@ -295,7 +295,7 @@
                     <!--饼形图-->
                     <!--定义数据标签样式，设置半径-->
                     <lvc:PieChart InnerRadius="45" Margin="0,40,0,20"
-                                  Series="{Binding PieSeriesCollection, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}">
+                                  Series="{Binding PieSeriesCollection}">
                         <lvc:PieChart.Resources>
                             <!--指定PieSeries的样式-->
                             <Style TargetType="lvc:PieSeries">
