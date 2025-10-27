@@ -222,7 +222,7 @@
                             <!--定义Y的数据-->
                             <lvc:CartesianChart.Series>
                                 <!--线条样式，取消点位-->
-                                <lvc:LineSeries Values="8,2,7,6,4,14" PointGeometrySize="0" Stroke="#ff2bedf1" >
+                                <lvc:LineSeries Values="{Binding QualityChartData}" PointGeometrySize="0" Stroke="#ff2bedf1" >
                                     <!--渐变色-->
                                     <lvc:LineSeries.Fill>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">

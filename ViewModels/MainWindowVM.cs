@@ -324,6 +324,31 @@ namespace ProductMonitor.ViewModels
         }
         #endregion
 
+
+        #region 折线图数据属性
+
+        /// <summary>
+        /// 质量数据
+        /// </summary>
+        private ChartValues<double> _QualityChartData = new ChartValues<double> { };
+
+        /// <summary>
+        /// 生产计数柱状图数据
+        /// </summary>
+        public ChartValues<double> QualityChartData
+        {
+            get { return _QualityChartData; }
+            set
+            {
+                _QualityChartData = value;
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs("QualityChartData"));
+                }
+            }
+        }
+        #endregion
+
         #region 环境监控数据
         /// <summary>
         /// 环境监控数据
@@ -572,6 +597,7 @@ namespace ProductMonitor.ViewModels
             UpdateRadarData(3, 0, 5);
             UpdatePieChartData(4, 0, 4);
             UpdateChartData(5, 0, 9);
+            UpdateQualityChartData(6, 0, 6);
 
 
         }
@@ -748,7 +774,7 @@ namespace ProductMonitor.ViewModels
 
         #endregion
 
-        #region 图表数据定时器
+        #region 柱状图数据定时器
         /// <summary>
         /// 图表数据定时器事件处理
         /// </summary>
@@ -789,7 +815,32 @@ namespace ProductMonitor.ViewModels
         }
         #endregion
 
+        #region 质量折线图
+        private async void UpdateQualityChartData(byte slaveId, ushort startAddress, ushort numberOfRegisters)
+        {
+            try
+            {
 
+                // 从Modbus读取生产计数数据
+                var qualityData = await _modbusService.ReadHoldingRegistersAsync(slaveId, startAddress, numberOfRegisters);
+                if (qualityData != null)
+                {
+                    var newQualityData = qualityData.Select(v => (double)v);
+                    if (!QualityChartData.SequenceEqual(newQualityData))
+                    {
+                        QualityChartData = new ChartValues<double>(newQualityData);
+                    }
+                }
+
+             
+            }
+            catch (Exception ex)
+            {
+                // 记录错误
+                Console.WriteLine($"读取图表数据时发生错误: {ex.Message}");
+            }
+        }
+        #endregion
         /// <summary>
         /// 停止定时器（在窗口关闭时调用）
         /// </summary>
