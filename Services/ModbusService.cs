@@ -2,6 +2,7 @@ using Modbus.Device;
 using ProductMonitor.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO.Ports;
 using System.Threading.Tasks;
 
@@ -208,6 +209,49 @@ namespace ProductMonitor.Services
                 {
                     return false;
                 }
+            });
+        }
+
+        /// <summary>
+        /// 读取饼图数据
+        /// </summary>
+        /// <returns>饼图数据集合</returns>
+        public async Task<ObservableCollection<PieChartModel>> ReadPieChartDataAsync()
+        {
+            return await Task.Run(() =>
+            {
+                var pieChartData = new ObservableCollection<PieChartModel>
+                {
+                    new PieChartModel { Title = "压差", Value = 0 },
+                    new PieChartModel { Title = "振动", Value = 0 },
+                    new PieChartModel { Title = "设备温度", Value = 0 },
+                    new PieChartModel { Title = "光照", Value = 0 }
+                };
+                
+                try
+                {
+                    using (SerialPort serialPort = new SerialPort(_portName, _baudRate, Parity.None, 8, StopBits.One))
+                    {
+                        serialPort.Open();
+                        IModbusSerialMaster master = ModbusSerialMaster.CreateRtu(serialPort);
+
+                        // 假设饼图数据存储在寄存器地址20-23
+                        ushort[] values = master.ReadHoldingRegisters(_slaveId, 40, 4);
+
+                        // 更新饼图数据
+                        pieChartData[0].Value = values[0]; // 压差
+                        pieChartData[1].Value = values[1]; // 振动
+                        pieChartData[2].Value = values[2]; // 设备温度
+                        pieChartData[3].Value = values[3]; // 光照
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Modbus饼图数据读取失败: {ex.Message}");
+                     
+                }
+
+                return pieChartData;
             });
         }
     }

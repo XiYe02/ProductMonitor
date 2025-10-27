@@ -35,12 +35,12 @@ namespace ProductMonitor.ViewModels
             _modbusService = new ModbusService();
             
             // 初始化设备数据定时器
-            _deviceDataTimer = new Timer(2000); // 每2秒更新一次
+            _deviceDataTimer = new Timer(1000); // 每2秒更新一次
             _deviceDataTimer.Elapsed += OnDeviceDataTimerElapsed;
             _deviceDataTimer.AutoReset = true;
 
             // 初始化环境数据定时器
-            _environmentDataTimer = new Timer(3000); // 每3秒更新一次
+            _environmentDataTimer = new Timer(1000); // 每3秒更新一次
             _environmentDataTimer.Elapsed += OnEnvironmentDataTimerElapsed;
             _environmentDataTimer.AutoReset = true;
 

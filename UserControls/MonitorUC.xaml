@@ -294,7 +294,8 @@
                 <GroupBox Grid.Row="2" Header="数据异常报警比例" Margin="0,5">
                     <!--饼形图-->
                     <!--定义数据标签样式，设置半径-->
-                    <lvc:PieChart InnerRadius="45" Margin="0,40,0,20">
+                    <lvc:PieChart InnerRadius="45" Margin="0,40,0,20"
+                                  Series="{Binding PieSeriesCollection, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}">
                         <lvc:PieChart.Resources>
                             <!--指定PieSeries的样式-->
                             <Style TargetType="lvc:PieSeries">
@@ -312,14 +313,6 @@
                                 </Setter>
                             </Style>
                         </lvc:PieChart.Resources>
-                        <!--定义饼形图-->
-                        <lvc:PieChart.Series>
-                            <!--饼形图数据，无边框，标签显示，标题位置-->
-                            <lvc:PieSeries Values="20" Title="压差" StrokeThickness="0" DataLabels="True" LabelPosition="OutsideSlice"></lvc:PieSeries>
-                            <lvc:PieSeries Values="40" Title="振动" StrokeThickness="0" DataLabels="True" LabelPosition="OutsideSlice"></lvc:PieSeries>
-                            <lvc:PieSeries Values="10" Title="设备温度" StrokeThickness="0" DataLabels="True" LabelPosition="OutsideSlice"></lvc:PieSeries>
-                            <lvc:PieSeries Values="30" Title="光照" StrokeThickness="0" DataLabels="True" LabelPosition="OutsideSlice"></lvc:PieSeries>
-                        </lvc:PieChart.Series>
                     </lvc:PieChart>
                 </GroupBox>
             </Grid>
