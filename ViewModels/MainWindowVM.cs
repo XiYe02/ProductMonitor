@@ -22,11 +22,8 @@ namespace ProductMonitor.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
 
         private readonly ModbusService _modbusService;
-        private Timer _deviceDataTimer;
-        private Timer _environmentDataTimer;
-        private Timer _radarDataTimer;
-        private Timer _chartDataTimer;
-        private Timer _pieChartDataTimer;
+      
+        private Timer ReadModbusDataTimer;
 
         /// <summary>
         /// 视图模型构造函数
@@ -35,33 +32,13 @@ namespace ProductMonitor.ViewModels
         {
             // 初始化Modbus服务
             _modbusService = new ModbusService();
+
+            ReadModbusDataTimer = new Timer(1000);
+            ReadModbusDataTimer.Elapsed += ReadModbusData;
+            ReadModbusDataTimer.AutoReset = true;
+          
+
             
-            // 初始化设备数据定时器
-            _deviceDataTimer = new Timer(1000); // 每2秒更新一次
-            _deviceDataTimer.Elapsed += OnDeviceDataTimerElapsed;
-            _deviceDataTimer.AutoReset = true;
-
-            // 初始化环境数据定时器
-            _environmentDataTimer = new Timer(1000); // 每3秒更新一次
-            _environmentDataTimer.Elapsed += OnEnvironmentDataTimerElapsed;
-            _environmentDataTimer.AutoReset = true;
-
-            // 初始化雷达数据定时器
-            _radarDataTimer = new Timer(1000); // 每4秒更新一次
-            _radarDataTimer.Elapsed += OnRadarDataTimerElapsed;
-            _radarDataTimer.AutoReset = true;
-
-            // 初始化图表数据定时器
-            _chartDataTimer = new Timer(1000); // 每4秒更新一次
-            _chartDataTimer.Elapsed += OnChartDataTimerElapsed;
-            _chartDataTimer.AutoReset = true;
-            _chartDataTimer.Start();
-
-            // 初始化饼图数据定时器
-            _pieChartDataTimer = new Timer(1000); // 每5秒更新一次
-            _pieChartDataTimer.Elapsed += OnPieChartDataTimerElapsed;
-            _pieChartDataTimer.AutoReset = true;
-           
 
             // 初始化饼图数据模型
             PieChartData = new ObservableCollection<PieChartModel>()
@@ -74,7 +51,7 @@ namespace ProductMonitor.ViewModels
 
             // 初始化饼图Series集合 - 先创建SeriesCollection再填充数据
             InitializePieChartData();
-            _pieChartDataTimer.Start();
+       
 
             #region 初始化环境监控数据
             EnviromentList = new List<EnviromentModel>();
@@ -88,8 +65,7 @@ namespace ProductMonitor.ViewModels
             EnviromentList.Add(new EnviromentModel { EnItemName = "硫化氢(PPM)", EnItemValue = 15 });
             EnviromentList.Add(new EnviromentModel { EnItemName = "氮气(PPM)", EnItemValue = 18 });
 
-            // 启动环境数据读取定时器
-            _environmentDataTimer.Start();
+  
             #endregion
 
             #region 初始化报警列表
@@ -114,8 +90,7 @@ namespace ProductMonitor.ViewModels
             DeviceList.Add(new DeviceModel { DeviceItem = "转速(r/min)", Value = 2600 });
             DeviceList.Add(new DeviceModel { DeviceItem = "气压(kpa)", Value = 0.5 });
 
-            // 启动设备数据读取定时器
-            _deviceDataTimer.Start();
+  
             #endregion
 
             #region 初始化雷达数据 
@@ -128,8 +103,8 @@ namespace ProductMonitor.ViewModels
             RaderList.Add(new RaderModel { ItemName = "喷淋水泵", Value = 69.59 });
             RaderList.Add(new RaderModel { ItemName = "稳压设备", Value = 20 });
 
-            // 启动雷达数据读取定时器
-            _radarDataTimer.Start();
+            ReadModbusDataTimer.Start();
+
             #endregion
 
             #region 初始化人员缺岗信息
@@ -170,6 +145,8 @@ namespace ProductMonitor.ViewModels
             #endregion
 
         }
+
+       
 
         /// <summary>
         /// 监控用户控件
@@ -586,18 +563,30 @@ namespace ProductMonitor.ViewModels
             PieSeriesCollection = newSeries;
         }
 
+
+
+        private async void ReadModbusData(object? sender, ElapsedEventArgs e)
+        {
+           UpdateDeviceData(1, 0, 8);
+            UpdateEnvironmentData(2, 0, 8);
+            UpdateRadarData(3, 0, 5);
+            UpdatePieChartData(4, 0, 4);
+            UpdateChartData(5, 0, 9);
+
+
+        }
         /// <summary>
         /// 设备数据定时器事件处理
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void OnDeviceDataTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void UpdateDeviceData(byte slaveId,ushort startAddress,ushort numberOfRegisters)
         {
             try
             {
-                ModbusService DeviceDataModbus = new ModbusService("COM3", 9600, 1);
+               
                 // 从Modbus读取设备数据
-                var newDeviceData = await DeviceDataModbus.ReadDeviceDataAsync();
+                var newDeviceData = await _modbusService.ReadDeviceDataAsync(slaveId, startAddress, numberOfRegisters);
                 
                 // 更新设备列表数据
                 for (int i = 0; i < DeviceList.Count && i < newDeviceData.Count; i++)
@@ -619,14 +608,14 @@ namespace ProductMonitor.ViewModels
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void OnEnvironmentDataTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void UpdateEnvironmentData(byte slaveId, ushort startAddress, ushort numberOfRegisters)
         {
             try
             {
-                ModbusService EnviromentDataModbus = new ModbusService("COM3", 9600, 2);
+                
 
                 // 从Modbus读取环境数据
-                var newEnvironmentData = await EnviromentDataModbus.ReadEnvironmentDataAsync();
+                var newEnvironmentData = await _modbusService.ReadEnvironmentDataAsync(slaveId, startAddress, numberOfRegisters);
                 
                 // 更新环境列表数据
                 for (int i = 0; i < EnviromentList.Count && i < newEnvironmentData.Count; i++)
@@ -646,13 +635,13 @@ namespace ProductMonitor.ViewModels
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void OnRadarDataTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void UpdateRadarData(byte slaveId, ushort startAddress, ushort numberOfRegisters)
         {
             try
             {
-                ModbusService RadarDataModbus = new ModbusService("COM3", 9600, 3);
+            
                 // 从Modbus读取雷达数据
-                var newRadarData = await RadarDataModbus.ReadRadarDataAsync();
+                var newRadarData = await _modbusService.ReadRadarDataAsync(slaveId, startAddress, numberOfRegisters);
                 
                 // 重新设置整个雷达列表以触发UI更新
                 RaderList = newRadarData;
@@ -671,13 +660,13 @@ namespace ProductMonitor.ViewModels
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void OnPieChartDataTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void UpdatePieChartData(byte slaveId, ushort startAddress, ushort numberOfRegisters)
         {
             try
             {
-               ModbusService  PieChartDataModbus=new ModbusService("COM3", 9600,4);
+ 
                 // 从PLC读取饼图数据
-                var newPieChartData = await PieChartDataModbus.ReadPieChartDataAsync();
+                var newPieChartData = await _modbusService.ReadPieChartDataAsync(slaveId, startAddress, numberOfRegisters);
                 
                 // 检查是否成功读取到数据
                 if (newPieChartData == null || newPieChartData.Count == 0)
@@ -765,14 +754,13 @@ namespace ProductMonitor.ViewModels
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void OnChartDataTimerElapsed(object sender, ElapsedEventArgs e)
+        private async void UpdateChartData(byte slaveId, ushort startAddress, ushort numberOfRegisters)
         {
             try
             {
-                ModbusService ChartDataModbus = new ModbusService("COM3", 9600, 5);
-
+             
                 // 从Modbus读取生产计数数据
-                var productionData = await ChartDataModbus.ReadHoldingRegistersAsync(0, 9);
+                var productionData = await _modbusService.ReadHoldingRegistersAsync(slaveId, startAddress, numberOfRegisters);
                 if (productionData != null)
                 {
                     var newProductionData = productionData.Select(v => (double)v);
@@ -783,7 +771,7 @@ namespace ProductMonitor.ViewModels
                 }
 
                 // 从Modbus读取不良计数数据
-                var defectData = await ChartDataModbus.ReadHoldingRegistersAsync(10, 9);
+                var defectData = await _modbusService.ReadHoldingRegistersAsync(slaveId, (ushort)(startAddress + numberOfRegisters+1), numberOfRegisters);
                 if (defectData != null)
                 {
                     var newDefectData = defectData.Select(v => (double)v);
@@ -807,16 +795,9 @@ namespace ProductMonitor.ViewModels
         /// </summary>
         public void StopTimer()
         {
-            _deviceDataTimer?.Stop();
-            _deviceDataTimer?.Dispose();
-            _environmentDataTimer?.Stop();
-            _environmentDataTimer?.Dispose();
-            _radarDataTimer?.Stop();
-            _radarDataTimer?.Dispose();
-            _chartDataTimer?.Stop();
-            _chartDataTimer?.Dispose();
-            _pieChartDataTimer?.Stop();
-            _pieChartDataTimer?.Dispose();
+
+          ReadModbusDataTimer.Stop();
+            ReadModbusDataTimer.Dispose();
         }
     }
 }
