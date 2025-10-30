@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,7 +9,7 @@ namespace ProductMonitor.Models
     /// <summary>
     /// 机台数据模型
     /// </summary>
-    internal class MachineModel
+    public class MachineModel
     {
         /// <summary>
         /// 机台名称

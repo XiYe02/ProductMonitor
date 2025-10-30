@@ -146,8 +146,9 @@ namespace ProductMonitor.ViewModels
 
         }
 
-       
 
+
+        #region 监控用户控件属性
         /// <summary>
         /// 监控用户控件
         /// </summary>
@@ -174,7 +175,8 @@ namespace ProductMonitor.ViewModels
                     PropertyChanged(this, new PropertyChangedEventArgs("MonitorUC"));
                 }
             }
-        }
+        } 
+        #endregion
 
         #region 时间 日期 
         /// <summary>
@@ -556,9 +558,25 @@ namespace ProductMonitor.ViewModels
         // 缓存上次数据，用于比较是否变化
         private double[] _lastPieValues;
         private string[] _lastPieTitles;
+        
+        // 缓存上次机台数据，用于比较是否变化
+        private List<MachineModel> _lastMachineData;
         #endregion
 
-        #region 私有方法
+        private async void ReadModbusData(object? sender, ElapsedEventArgs e)
+        {
+            UpdateDeviceData(1, 0, 8);
+            UpdateEnvironmentData(2, 0, 8);
+            UpdateRadarData(3, 0, 5);
+            UpdatePieChartData(4, 0, 4);
+            UpdateChartData(5, 0, 9);
+            UpdateQualityChartData(6, 0, 6);
+            UpdateMachineData(7, 0, 16);  // 添加机台数据更新
+
+
+        }
+
+        #region 读取Modbus数据的方法
 
         /// <summary>
         /// 初始化饼图数据
@@ -590,17 +608,7 @@ namespace ProductMonitor.ViewModels
 
 
 
-        private async void ReadModbusData(object? sender, ElapsedEventArgs e)
-        {
-           UpdateDeviceData(1, 0, 8);
-            UpdateEnvironmentData(2, 0, 8);
-            UpdateRadarData(3, 0, 5);
-            UpdatePieChartData(4, 0, 4);
-            UpdateChartData(5, 0, 9);
-            UpdateQualityChartData(6, 0, 6);
-
-
-        }
+       
         /// <summary>
         /// 设备数据定时器事件处理
         /// </summary>
@@ -838,6 +846,88 @@ namespace ProductMonitor.ViewModels
             {
                 // 记录错误
                 Console.WriteLine($"读取图表数据时发生错误: {ex.Message}");
+            }
+        }
+        #endregion
+
+        #region 机台数据定时器
+        /// <summary>
+        /// 机台数据定时器事件处理
+        /// </summary>
+        /// <param name="slaveId">从站地址</param>
+        /// <param name="startAddress">起始地址</param>
+        /// <param name="machineCount">机台数量</param>
+        private async void UpdateMachineData(byte slaveId, ushort startAddress, int machineCount)
+        {
+            try
+            {
+                // 从Modbus读取机台数据
+                var newMachineData = await _modbusService.ReadMachineDataAsync(slaveId, startAddress, machineCount);
+                
+                // 如果读取失败或为空，保持当前数据
+                if (newMachineData == null || newMachineData.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("机台数据读取失败或为空，保持当前数据");
+                    return;
+                }
+                
+                // 比较数据是否变化
+                bool dataChanged = false;
+                
+                if (_lastMachineData == null || _lastMachineData.Count != newMachineData.Count)
+                {
+                    // 首次读取或数量变化
+                    dataChanged = true;
+                }
+                else
+                {
+                    // 逐台机器比较数据
+                    for (int i = 0; i < newMachineData.Count; i++)
+                    {
+                        var newMachine = newMachineData[i];
+                        var oldMachine = _lastMachineData[i];
+                        
+                        if (newMachine.MachineName != oldMachine.MachineName ||
+                            newMachine.Status != oldMachine.Status ||
+                            newMachine.PlanCount != oldMachine.PlanCount ||
+                            newMachine.FinishedCount != oldMachine.FinishedCount ||
+                            newMachine.OrderNo != oldMachine.OrderNo)
+                        {
+                            dataChanged = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // 如果数据没有变化，跳过更新
+                if (!dataChanged)
+                {
+                    System.Diagnostics.Debug.WriteLine("机台数据无变化，跳过UI更新");
+                    return;
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"机台数据发生变化，更新UI - 共{newMachineData.Count}台机器");
+                
+                // 使用UI线程更新数据
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MachineList = newMachineData;
+                });
+                
+                // 缓存本次数据，用于下次比较（深拷贝）
+                _lastMachineData = newMachineData.Select(m => new MachineModel
+                {
+                    MachineName = m.MachineName,
+                    Status = m.Status,
+                    PlanCount = m.PlanCount,
+                    FinishedCount = m.FinishedCount,
+                    OrderNo = m.OrderNo
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                // 记录错误
+                System.Diagnostics.Debug.WriteLine($"读取机台数据时发生错误: {ex.Message}");
             }
         }
         #endregion

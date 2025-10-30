@@ -229,5 +229,73 @@ namespace ProductMonitor.Services
                 return pieChartData;
             });
         }
+
+        /// <summary>
+        /// 读取机台列表数据
+        /// </summary>
+        /// <param name="slaveId">从站地址</param>
+        /// <param name="startAddress">起始地址</param>
+        /// <param name="machineCount">机台数量</param>
+        /// <returns>机台数据列表</returns>
+        public async Task<List<MachineModel>> ReadMachineDataAsync(byte slaveId, ushort startAddress, int machineCount)
+        {
+            return await Task.Run(() =>
+            {
+                var machineList = new List<MachineModel>();
+                
+                try
+                {
+                    // 每台机器需要读取5个寄存器:
+                    // 0: 机台编号 (1-20)
+                    // 1: 状态 (0=待机, 1=作业中, 2=故障, 3=停机)
+                    // 2: 计划任务数量 (高位)
+                    // 3: 计划任务数量 (低位)
+                    // 4: 已完成任务数量 (高位)
+                    // 5: 已完成任务数量 (低位)
+                    
+                    ushort registersPerMachine = 6;
+                    ushort totalRegisters = (ushort)(registersPerMachine * machineCount);
+                    
+                    // 读取所有机台数据
+                    ushort[] values = master.ReadHoldingRegisters(slaveId, startAddress, totalRegisters);
+                    
+                    System.Diagnostics.Debug.WriteLine($"Modbus机台数据读取成功: 共{values.Length}个寄存器");
+                    
+                    // 状态映射
+                    string[] statusMap = new string[] { "待机", "作业中", "故障", "停机" };
+                    
+                    // 解析每台机器的数据
+                    for (int i = 0; i < machineCount; i++)
+                    {
+                        int offset = i * registersPerMachine;
+                        
+                        int machineNo = values[offset];  // 机台编号
+                        int statusCode = values[offset + 1];  // 状态码
+                        int planCount = (values[offset + 2] << 16) | values[offset + 3];  // 计划量(32位)
+                        int finishedCount = (values[offset + 4] << 16) | values[offset + 5];  // 完成量(32位)
+                        
+                        string status = statusCode < statusMap.Length ? statusMap[statusCode] : "未知";
+                        
+                        machineList.Add(new MachineModel
+                        {
+                            MachineName = $"焊接机-{machineNo}",
+                            Status = status,
+                            PlanCount = planCount,
+                            FinishedCount = finishedCount,
+                            OrderNo = $"H202212345678"  // 可以根据需要从PLC读取工单号
+                        });
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"成功解析{machineList.Count}台机器数据");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Modbus机台数据读取失败: {ex.Message}");
+                    // 返回空列表,由调用方决定是否使用模拟数据
+                }
+                
+                return machineList;
+            });
+        }
     }
 }
