@@ -1,6 +1,7 @@
 using ProductMonitor.Models;
 using ProductMonitor.Services;
 using ProductMonitor.UserControls;
+using ProductMonitor.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -22,6 +23,7 @@ namespace ProductMonitor.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
 
         private readonly ModbusService _modbusService;
+        private readonly ConfigService _configService;
       
         private Timer ReadModbusDataTimer;
 
@@ -30,6 +32,9 @@ namespace ProductMonitor.ViewModels
         /// </summary>
         public MainWindowVM()
         {
+            // 初始化配置服务
+            _configService = ConfigService.Instance;
+            
             // 初始化Modbus服务
             _modbusService = new ModbusService();
 
@@ -565,15 +570,36 @@ namespace ProductMonitor.ViewModels
 
         private async void ReadModbusData(object? sender, ElapsedEventArgs e)
         {
-            UpdateDeviceData(1, 0, 8);
-            UpdateEnvironmentData(2, 0, 8);
-            UpdateRadarData(3, 0, 5);
-            UpdatePieChartData(4, 0, 4);
-            UpdateChartData(5, 0, 9);
-            UpdateQualityChartData(6, 0, 6);
-            UpdateMachineData(7, 0, 16);  // 添加机台数据更新
-
-
+            // 从配置文件读取各数据源配置
+            var deviceConfig = _configService.GetDataSourceConfig("DeviceData");
+            var envConfig = _configService.GetDataSourceConfig("EnvironmentData");
+            var radarConfig = _configService.GetDataSourceConfig("RadarData");
+            var pieConfig = _configService.GetDataSourceConfig("PieChartData");
+            var chartConfig = _configService.GetDataSourceConfig("ChartData");
+            var qualityConfig = _configService.GetDataSourceConfig("QualityChartData");
+            var machineConfig = _configService.GetDataSourceConfig("MachineData");
+            
+            // 根据配置更新各数据源
+            if (deviceConfig != null)
+                UpdateDeviceData(deviceConfig.SlaveId, deviceConfig.StartAddress, deviceConfig.NumberOfRegisters);
+            
+            if (envConfig != null)
+                UpdateEnvironmentData(envConfig.SlaveId, envConfig.StartAddress, envConfig.NumberOfRegisters);
+            
+            if (radarConfig != null)
+                UpdateRadarData(radarConfig.SlaveId, radarConfig.StartAddress, radarConfig.NumberOfRegisters);
+            
+            if (pieConfig != null)
+                UpdatePieChartData(pieConfig.SlaveId, pieConfig.StartAddress, pieConfig.NumberOfRegisters);
+            
+            if (chartConfig != null)
+                UpdateChartData(chartConfig.SlaveId, chartConfig.StartAddress, chartConfig.NumberOfRegisters);
+            
+            if (qualityConfig != null)
+                UpdateQualityChartData(qualityConfig.SlaveId, qualityConfig.StartAddress, qualityConfig.NumberOfRegisters);
+            
+            if (machineConfig != null)
+                UpdateMachineData(machineConfig.SlaveId, machineConfig.StartAddress, machineConfig.NumberOfRegisters);
         }
 
         #region 读取Modbus数据的方法

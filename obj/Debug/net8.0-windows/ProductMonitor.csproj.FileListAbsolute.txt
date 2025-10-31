@@ -50,3 +50,4 @@ F:\StudyDate\WPFData\ProductMonitor-master\ProductMonitor\ProductMonitor\obj\Deb
 F:\StudyDate\WPFData\ProductMonitor-master\ProductMonitor\ProductMonitor\obj\Debug\net8.0-windows\ProductMonitor.pdb
 F:\StudyDate\WPFData\ProductMonitor-master\ProductMonitor\ProductMonitor\obj\Debug\net8.0-windows\ProductMonitor.genruntimeconfig.cache
 F:\StudyDate\WPFData\ProductMonitor-master\ProductMonitor\ProductMonitor\obj\Debug\net8.0-windows\ref\ProductMonitor.dll
+F:\StudyDate\WPFData\ProductMonitor-master\ProductMonitor\ProductMonitor\bin\Debug\net8.0-windows\modbusconfig.json

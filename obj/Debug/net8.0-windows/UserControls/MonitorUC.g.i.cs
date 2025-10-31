@@ -54,7 +54,7 @@ namespace ProductMonitor.UserControls {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/ProductMonitor;V1.0.0.0;component/usercontrols/monitoruc.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/ProductMonitor;component/usercontrols/monitoruc.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\UserControls\MonitorUC.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

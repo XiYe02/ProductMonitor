@@ -1,0 +1,110 @@
+{
+  "SerialPort": {
+    "PortName": "COM3",
+    "BaudRate": 9600,
+    "Parity": "None",
+    "DataBits": 8,
+    "StopBits": "One"
+  },
+  "DataSources": [
+    {
+      "Name": "DeviceData",
+      "SlaveId": 1,
+      "StartAddress": 0,
+      "NumberOfRegisters": 8,
+      "UpdateInterval": 1000,
+      "DataMapping": [
+        { "Name": "电能(Kw.h)", "RegisterOffset": 0, "Scale": 1.0 },
+        { "Name": "电压(V)", "RegisterOffset": 1, "Scale": 1.0 },
+        { "Name": "电流(A)", "RegisterOffset": 2, "Scale": 1.0 },
+        { "Name": "压差(kpa)", "RegisterOffset": 3, "Scale": 1.0 },
+        { "Name": "温度(℃)", "RegisterOffset": 4, "Scale": 1.0 },
+        { "Name": "振动(mm/s)", "RegisterOffset": 5, "Scale": 1.0 },
+        { "Name": "转速(r/min)", "RegisterOffset": 6, "Scale": 1.0 },
+        { "Name": "气压(kpa)", "RegisterOffset": 7, "Scale": 1.0 }
+      ]
+    },
+    {
+      "Name": "EnvironmentData",
+      "SlaveId": 2,
+      "StartAddress": 0,
+      "NumberOfRegisters": 8,
+      "UpdateInterval": 1000,
+      "DataMapping": [
+        { "Name": "光照(Lux)", "RegisterOffset": 0, "Scale": 1.0 },
+        { "Name": "噪音(db)", "RegisterOffset": 1, "Scale": 1.0 },
+        { "Name": "温度(℃)", "RegisterOffset": 2, "Scale": 1.0 },
+        { "Name": "湿度(%)", "RegisterOffset": 3, "Scale": 1.0 },
+        { "Name": "PM2.5(m?)", "RegisterOffset": 4, "Scale": 1.0 },
+        { "Name": "硫化氢(PPM)", "RegisterOffset": 5, "Scale": 1.0 },
+        { "Name": "氮气(PPM)", "RegisterOffset": 6, "Scale": 1.0 }
+      ]
+    },
+    {
+      "Name": "RadarData",
+      "SlaveId": 3,
+      "StartAddress": 0,
+      "NumberOfRegisters": 5,
+      "UpdateInterval": 1000,
+      "DataMapping": [
+        { "Name": "排烟风机", "RegisterOffset": 0, "Scale": 1.0 },
+        { "Name": "客梯", "RegisterOffset": 1, "Scale": 1.0 },
+        { "Name": "供水机", "RegisterOffset": 2, "Scale": 1.0 },
+        { "Name": "喷淋水泵", "RegisterOffset": 3, "Scale": 1.0 },
+        { "Name": "稳压设备", "RegisterOffset": 4, "Scale": 1.0 }
+      ]
+    },
+    {
+      "Name": "PieChartData",
+      "SlaveId": 4,
+      "StartAddress": 0,
+      "NumberOfRegisters": 4,
+      "UpdateInterval": 1000,
+      "DataMapping": [
+        { "Name": "压差", "RegisterOffset": 0, "Scale": 1.0 },
+        { "Name": "振动", "RegisterOffset": 1, "Scale": 1.0 },
+        { "Name": "设备温度", "RegisterOffset": 2, "Scale": 1.0 },
+        { "Name": "光照", "RegisterOffset": 3, "Scale": 1.0 }
+      ]
+    },
+    {
+      "Name": "ChartData",
+      "SlaveId": 5,
+      "StartAddress": 0,
+      "NumberOfRegisters": 9,
+      "UpdateInterval": 1000,
+      "DataMapping": []
+    },
+    {
+      "Name": "QualityChartData",
+      "SlaveId": 6,
+      "StartAddress": 0,
+      "NumberOfRegisters": 6,
+      "UpdateInterval": 1000,
+      "DataMapping": []
+    },
+    {
+      "Name": "MachineData",
+      "SlaveId": 7,
+      "StartAddress": 0,
+      "NumberOfRegisters": 16,
+      "UpdateInterval": 1000,
+      "RegistersPerMachine": 6,
+      "MachineCount": 16,
+      "DataMapping": [
+        { "Name": "MachineNo", "RegisterOffset": 0, "Description": "机台编号" },
+        { "Name": "Status", "RegisterOffset": 1, "Description": "状态码" },
+        { "Name": "PlanCountHigh", "RegisterOffset": 2, "Description": "计划量高位" },
+        { "Name": "PlanCountLow", "RegisterOffset": 3, "Description": "计划量低位" },
+        { "Name": "FinishedCountHigh", "RegisterOffset": 4, "Description": "完成量高位" },
+        { "Name": "FinishedCountLow", "RegisterOffset": 5, "Description": "完成量低位" }
+      ],
+      "StatusMapping": {
+        "0": "待机",
+        "1": "作业中",
+        "2": "故障",
+        "3": "停机"
+      }
+    }
+  ]
+}
